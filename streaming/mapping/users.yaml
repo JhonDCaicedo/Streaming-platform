@@ -1,0 +1,13 @@
+
+source_table: users
+target_table: customers
+primary_key: customer_id
+
+mappings:
+  customer_id: id
+  full_name: name
+
+operations:
+  insert: true
+  update: true
+  delete: true

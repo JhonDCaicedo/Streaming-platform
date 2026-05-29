@@ -1,0 +1,119 @@
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_PROCESS_ROLES: broker,controller
+      CLUSTER_ID: 00000000-0000-0000-0000-000000000001
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8085:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter
+    container_name: kafka-exporter
+    ports:
+      - "9308:9308"
+    command:
+      - "--kafka.server=kafka:9092"
+    depends_on:
+      - kafka
+      
+  kafka-connect:
+      image: debezium/connect:2.4
+      container_name: kafka-connect
+      ports:
+        - "8083:8083"
+      environment:
+        BOOTSTRAP_SERVERS: kafka:9092
+        GROUP_ID: "connect-cluster"
+        CONFIG_STORAGE_TOPIC: connect-configs
+        OFFSET_STORAGE_TOPIC: connect-offsets
+        STATUS_STORAGE_TOPIC: connect-status
+      depends_on:
+        - kafka
+
+  Flink-JobManager:
+    image: flink:latest
+    container_name: flink-jobmanager
+    command: jobmanager
+    depends_on:
+      - kafka
+    ports:
+      - "8081:8081"
+    environment:
+      JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
+
+  Flink-TaskManager:
+    image: flink:latest
+    container_name: flink-taskmanager
+    command: taskmanager
+    depends_on:
+      - kafka
+      - Flink-JobManager
+    ports:
+      - "8082:8082"
+    environment:
+      JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
+
+  cdc-etl-engine:
+    build:
+      context: ./streaming
+      dockerfile: Dockerfile
+    container_name: cdc-etl-engine
+    depends_on:
+      - kafka
+    volumes:
+      - ./streaming:/app
+    working_dir: /app
+    command: python main.py
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  
+  cdc-dlq-reprocessor:
+    build:
+      context: ./streaming
+      dockerfile: Dockerfile
+    container_name: cdc-dlq-reprocessor
+    depends_on:
+      - kafka
+    volumes:
+      - ./streaming:/app
+    working_dir: /app
+    command: python reprocess_dlq.py
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+ 
+networks:
+  default:
+    external:
+      name: data-platform-net
