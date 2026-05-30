@@ -203,28 +203,7 @@ Scalable architecture
 # 👨‍💻 Author
 Jhon David Caicedo Alvarez
 
----
 
-# 🔥 RESULTADO
-
-Con este README tienes:
-
-✅ presentación profesional  
-✅ arquitectura clara  
-✅ código real  
-✅ fácil de entender  
-✅ listo para GitHub  
-
----
-
-# 🚀 OPCIONAL (RECOMENDADO)
-
-Si quieres hacerlo aún más pro:
-
-👉 agregar badges:
-
-```markdown
-https://img.shields.io/badge/docker-ready-blue
 https://img.shields.io/badge/kafka-streaming-orange
 https://img.shields.io/badge/python-3.9-blue
 
